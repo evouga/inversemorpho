@@ -2,6 +2,7 @@
 #define MAINWINDOW_H
 
 #include <QMainWindow>
+#include <QTimer>
 #include <string>
 #include "mesh.h"
 
@@ -26,6 +27,7 @@ public slots:
     void showError(std::string error);
     void centerCamera(Eigen::Vector3d centroid, double radius);
     void repaintMesh();
+    void tick();
 
 private slots:
     void on_actionExit_triggered();
@@ -41,30 +43,7 @@ private slots:
     void on_actionExport_OBJ_triggered();
 
     void on_actionImport_OBJ_triggered();
-
-    void on_poissonRatioEdit_textEdited(const QString &arg1);
-
-    void on_youngsModulusEdit_textEdited(const QString &arg1);
-
-    void on_thicknessEdit_textEdited(const QString &arg1);
-
-    void on_findMetricButton_clicked();
-
-    void on_maxitersEdit_textEdited(const QString &arg1);
-
-    void on_maxlsitersEdit_textEdited(const QString &arg1);
-
-    void on_tolEdit_textEdited(const QString &arg1);
-
     void on_relaxEmbeddingButton_clicked();
-
-    void on_densityEdit_textEdited(const QString &arg1);
-
-    void on_dampingCoeffEdit_textEdited(const QString &arg1);
-
-    void on_eulerTimestepEdit_textEdited(const QString &arg1);
-
-    void on_eulerItersEdit_textEdited(const QString &arg1);
 
 private:
     void updateGL();
@@ -75,6 +54,7 @@ private:
 
     Ui::MainWindow *ui;
     Controller *cont_;
+    QTimer *repainttimer_;
 };
 
 #endif // MAINWINDOW_H

@@ -28,9 +28,7 @@ SOURCES += main.cpp\
     controller.cpp \
     mesh-rendering.cpp \
     mesh-optimization.cpp \
-    newton.cpp \
-    elasticenergy.cpp \
-    shellenergy.cpp
+    shellforces.cpp
 
 HEADERS  += mainwindow.h \
     mesh.h \
@@ -41,8 +39,6 @@ HEADERS  += mainwindow.h \
     camera.h \
     yimage.h \
     controller.h \
-    newton.h \
-    elasticenergy.h \
-    shellenergy.h
+    shellforces.h
 
 FORMS    += mainwindow.ui

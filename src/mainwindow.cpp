@@ -16,12 +16,22 @@ MainWindow::MainWindow(QWidget *parent) :
     cont_(NULL)
 {
     ui->setupUi(this);
+    repainttimer_ = new QTimer(this);
+    repainttimer_->start(20);
+    connect(repainttimer_, SIGNAL(timeout()), this, SLOT(tick()));
 }
 
 MainWindow::~MainWindow()
 {
     delete ui;
+    delete repainttimer_;
 }
+
+void MainWindow::tick()
+{
+    repaintMesh();
+}
+
 
 void MainWindow::setController(Controller &cont)
 {
@@ -85,35 +95,15 @@ void MainWindow::updateGL()
 
 void MainWindow::setParameters(ProblemParameters params)
 {
-    ui->youngsModulusEdit->setText(QString::number(params.YoungsModulus));
-    ui->poissonRatioEdit->setText(QString::number(params.PoissonRatio));
-    ui->thicknessEdit->setText(QString::number(params.h));
-    ui->maxitersEdit->setText(QString::number(params.maxiters));
-    ui->maxlsitersEdit->setText(QString::number(params.maxlinesearchiters));
-    ui->tolEdit->setText(QString::number(params.tol));
     ui->wireframeCheckBox->setChecked(params.showWireframe);
-    ui->smoothShadeCheckBox->setChecked(params.smoothShade);
-    ui->densityEdit->setText(QString::number(params.rho));
-    ui->dampingCoeffEdit->setText(QString::number(params.dampingCoeff));
-    ui->eulerItersEdit->setText(QString::number(params.numEulerIters));
-    ui->eulerTimestepEdit->setText(QString::number(params.eulerTimestep));
+    ui->smoothShadeCheckBox->setChecked(params.smoothShade);    
 }
 
 ProblemParameters MainWindow::getParameters()
 {
     ProblemParameters result;
-    result.YoungsModulus = ui->youngsModulusEdit->text().toDouble();
-    result.PoissonRatio  = ui->poissonRatioEdit->text().toDouble();
-    result.h = ui->thicknessEdit->text().toDouble();
-    result.maxiters = ui->maxitersEdit->text().toInt();
-    result.maxlinesearchiters = ui->maxlsitersEdit->text().toInt();
-    result.tol = ui->tolEdit->text().toDouble();
     result.showWireframe = ui->wireframeCheckBox->isChecked();
     result.smoothShade = ui->smoothShadeCheckBox->isChecked();
-    result.rho = ui->densityEdit->text().toDouble();
-    result.dampingCoeff = ui->dampingCoeffEdit->text().toDouble();
-    result.eulerTimestep = ui->eulerTimestepEdit->text().toDouble();
-    result.numEulerIters = ui->eulerItersEdit->text().toInt();
     return result;
 }
 
@@ -169,62 +159,7 @@ void MainWindow::on_actionImport_OBJ_triggered()
     QMetaObject::invokeMethod(cont_, "importOBJ", Q_ARG(std::string, filename));
 }
 
-void MainWindow::on_poissonRatioEdit_textEdited(const QString &)
-{
-    QMetaObject::invokeMethod(cont_, "updateParameters", Q_ARG(ProblemParameters, getParameters()));
-}
-
-void MainWindow::on_youngsModulusEdit_textEdited(const QString &)
-{
-    QMetaObject::invokeMethod(cont_, "updateParameters", Q_ARG(ProblemParameters, getParameters()));
-}
-
-void MainWindow::on_thicknessEdit_textEdited(const QString &)
-{
-    QMetaObject::invokeMethod(cont_, "updateParameters", Q_ARG(ProblemParameters, getParameters()));
-}
-
-void MainWindow::on_findMetricButton_clicked()
-{
-    QMetaObject::invokeMethod(cont_, "findMetric");
-}
-
-void MainWindow::on_maxitersEdit_textEdited(const QString &)
-{
-    QMetaObject::invokeMethod(cont_, "updateParameters", Q_ARG(ProblemParameters, getParameters()));
-}
-
-void MainWindow::on_maxlsitersEdit_textEdited(const QString &)
-{
-    QMetaObject::invokeMethod(cont_, "updateParameters", Q_ARG(ProblemParameters, getParameters()));
-}
-
-void MainWindow::on_tolEdit_textEdited(const QString &)
-{
-    QMetaObject::invokeMethod(cont_, "updateParameters", Q_ARG(ProblemParameters, getParameters()));
-}
-
 void MainWindow::on_relaxEmbeddingButton_clicked()
 {
     QMetaObject::invokeMethod(cont_, "relaxEmbedding");
-}
-
-void MainWindow::on_densityEdit_textEdited(const QString &)
-{
-    QMetaObject::invokeMethod(cont_, "updateParameters", Q_ARG(ProblemParameters, getParameters()));
-}
-
-void MainWindow::on_dampingCoeffEdit_textEdited(const QString &)
-{
-    QMetaObject::invokeMethod(cont_, "updateParameters", Q_ARG(ProblemParameters, getParameters()));
-}
-
-void MainWindow::on_eulerTimestepEdit_textEdited(const QString &)
-{
-    QMetaObject::invokeMethod(cont_, "updateParameters", Q_ARG(ProblemParameters, getParameters()));
-}
-
-void MainWindow::on_eulerItersEdit_textEdited(const QString &)
-{
-    QMetaObject::invokeMethod(cont_, "updateParameters", Q_ARG(ProblemParameters, getParameters()));
 }

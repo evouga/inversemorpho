@@ -5,10 +5,12 @@
 #include <Eigen/Core>
 #include "mesh.h"
 
-class ShellEnergy
+class ShellForces
 {
 public:
-    ShellEnergy(OMMesh &mesh, const Eigen::VectorXd &undefq, double stretchingStiffness, double bendingStiffness);
+    ShellForces(OMMesh &mesh, const Eigen::VectorXd &undefq, double stretchingStiffness, double bendingStiffness);
+
+    void getForce(const Eigen::VectorXd &q, Eigen::VectorXd &f);
 
 private:
     void getStencilStretchingForces(const Eigen::VectorXd &q,

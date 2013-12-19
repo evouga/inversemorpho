@@ -1,11 +1,11 @@
-#include "shellenergy.h"
+#include "shellforces.h"
 #include "mesh.h"
 #include <Eigen/Core>
 #include <Eigen/Geometry>
 
 using namespace Eigen;
 
-ShellEnergy::ShellEnergy(OMMesh &mesh, const VectorXd &undefq, double stretchingStiffness, double bendingStiffness)
+ShellForces::ShellForces(OMMesh &mesh, const VectorXd &undefq, double stretchingStiffness, double bendingStiffness)
     : mesh_(mesh), stretchingStiffness_(stretchingStiffness), bendingStiffness_(bendingStiffness)
 {
     undeformedLengths_.resize(mesh_.n_faces());
@@ -40,8 +40,8 @@ ShellEnergy::ShellEnergy(OMMesh &mesh, const VectorXd &undefq, double stretching
         OMMesh::HalfedgeHandle heh = mesh_.halfedge_handle(ei.handle(), 0);
         int p1 = mesh_.from_vertex_handle(heh).idx();
         int p2 = mesh_.to_vertex_handle(heh).idx();
-        int q1 = mesh_.to_vertex_handle(mesh_.next_halfedge_handle(heh)).idx();
-        int q2 = mesh_.to_vertex_handle(mesh_.next_halfedge_handle(mesh_.opposite_halfedge_handle(heh))).idx();
+        int q1 = mesh_.opposite_vh(heh).idx();
+        int q2 = mesh_.opposite_vh(mesh_.opposite_halfedge_handle(heh)).idx();
 
         int eidx = ei.handle().idx();
 
@@ -57,7 +57,7 @@ ShellEnergy::ShellEnergy(OMMesh &mesh, const VectorXd &undefq, double stretching
     }
 }
 
-void ShellEnergy::precomputeMatrix(const Eigen::VectorXd &undefq, int v0, int v1, int v2, Matrix3d &Tm)
+void ShellForces::precomputeMatrix(const Eigen::VectorXd &undefq, int v0, int v1, int v2, Matrix3d &Tm)
 {
     Vector3d uv[3];
     uv[0] = undefq.segment<3>(3*v2) - undefq.segment<3>(3*v1);
@@ -90,8 +90,9 @@ void ShellEnergy::precomputeMatrix(const Eigen::VectorXd &undefq, int v0, int v1
     }
 }
 
-void ShellEnergy::getStretchingForce(const VectorXd &q, VectorXd &f)
+void ShellForces::getStretchingForce(const VectorXd &q, VectorXd &f)
 {
+    f.resize(q.size());
     f.setZero();
     for(OMMesh::FaceIter fi = mesh_.faces_begin(); fi != mesh_.faces_end(); ++fi)
     {
@@ -109,7 +110,7 @@ void ShellEnergy::getStretchingForce(const VectorXd &q, VectorXd &f)
     }
 }
 
-void ShellEnergy::getStencilStretchingForces(const VectorXd &q, Vector3d *force, int v0, int v1, int v2, Matrix3d &Tm, int trinum)
+void ShellForces::getStencilStretchingForces(const VectorXd &q, Vector3d *force, int v0, int v1, int v2, Matrix3d &Tm, int trinum)
 {
     Vector3d v[3] = { q.segment<3>(3*v2) - q.segment<3>(3*v1),
                       q.segment<3>(3*v0) - q.segment<3>(3*v2),
@@ -125,6 +126,9 @@ void ShellEnergy::getStencilStretchingForces(const VectorXd &q, Vector3d *force,
     double  s[3] = { v[0].squaredNorm() - uv[0],
                    v[1].squaredNorm() - uv[1],
                    v[2].squaredNorm() - uv[2] };
+
+    for(int i=0; i<3; i++)
+        force[i].setZero();
 
     // taking derivative of the energy with respect to degree of freedom pkl
     // (l-th component of vertex k) gives the formula below for the force on
@@ -145,8 +149,9 @@ void ShellEnergy::getStencilStretchingForces(const VectorXd &q, Vector3d *force,
 
 
 
-void ShellEnergy::getBendingForce(const VectorXd &q, VectorXd &f)
+void ShellForces::getBendingForce(const VectorXd &q, VectorXd &f)
 {
+    f.resize(q.size());
     f.setZero();
     for(OMMesh::EdgeIter ei = mesh_.edges_begin(); ei != mesh_.edges_end(); ++ei)
     {
@@ -155,8 +160,8 @@ void ShellEnergy::getBendingForce(const VectorXd &q, VectorXd &f)
         OMMesh::HalfedgeHandle heh = mesh_.halfedge_handle(ei.handle(), 0);
         int p1 = mesh_.from_vertex_handle(heh).idx();
         int p2 = mesh_.to_vertex_handle(heh).idx();
-        int q1 = mesh_.to_vertex_handle(mesh_.next_halfedge_handle(heh)).idx();
-        int q2 = mesh_.to_vertex_handle(mesh_.next_halfedge_handle(mesh_.opposite_halfedge_handle(heh))).idx();
+        int q1 = mesh_.opposite_vh(heh).idx();
+        int q2 = mesh_.opposite_vh(mesh_.opposite_halfedge_handle(heh)).idx();
 
         int eidx = ei.handle().idx();
 
@@ -167,28 +172,26 @@ void ShellEnergy::getBendingForce(const VectorXd &q, VectorXd &f)
         ComputeDihedralAngleDerivatives(q, p1, p2, q1, q2, dp1, dp2, dq1, dq2);
 
         Vector3d force[4];
-        force[0] = -dp1 * e0_[eidx] / h0_[eidx] * (tan(theta/2)-tan(theta0/2)) / cos(theta/2) / cos(theta/2);
-        force[1] = -dp2 * e0_[eidx] / h0_[eidx] * (tan(theta/2)-tan(theta0/2)) / cos(theta/2) / cos(theta/2);
-        force[2] = -dq1 * e0_[eidx] / h0_[eidx] * (tan(theta/2)-tan(theta0/2)) / cos(theta/2) / cos(theta/2);
-        force[3] = -dq2 * e0_[eidx] / h0_[eidx] * (tan(theta/2)-tan(theta0/2)) / cos(theta/2) / cos(theta/2);
+        force[0] = -dp1 * e0_[eidx] / h0_[eidx] * (theta-theta0);
+        force[1] = -dp2 * e0_[eidx] / h0_[eidx] * (theta-theta0);
+        force[2] = -dq1 * e0_[eidx] / h0_[eidx] * (theta-theta0);
+        force[3] = -dq2 * e0_[eidx] / h0_[eidx] * (theta-theta0);
 
-        // Update velocities
-        //
         f.segment<3>(3*p1) += force[0] * bendingStiffness_;
         f.segment<3>(3*p2) += force[1] * bendingStiffness_;
         f.segment<3>(3*q1) += force[2] * bendingStiffness_;
         f.segment<3>(3*q2) += force[3] * bendingStiffness_;
-    }
+    }    
 }
 
-double ShellEnergy::computeAngle(const VectorXd &q, int p1, int p2, int q1, int q2)
+double ShellForces::computeAngle(const VectorXd &q, int p1, int p2, int q1, int q2)
 {
     Vector3d ev = q.segment<3>(3*p2) - q.segment<3>(3*p1);
 
     // compute normals of the two deformed triangles and the angle between them
     //
     Vector3d n1 = ev.cross(q.segment<3>(3*q1) - q.segment<3>(3*p1));
-    Vector3d n2 = q.segment<3>(3*q2) - q.segment<3>(3*p1).cross(ev);
+    Vector3d n2 = (q.segment<3>(3*q2) - q.segment<3>(3*p1)).cross(ev);
 
     double mag = ev.norm();
     ev /= mag;
@@ -197,7 +200,7 @@ double ShellEnergy::computeAngle(const VectorXd &q, int p1, int p2, int q1, int 
     return atan2(n1.cross(n2).dot(ev), n1.dot(n2));
 }
 
-void ShellEnergy::ComputeDihedralAngleDerivatives(const VectorXd &q, int p1, int p2, int q1, int q2,
+void ShellForces::ComputeDihedralAngleDerivatives(const VectorXd &q, int p1, int p2, int q1, int q2,
                                                         Vector3d &del_p1_theta,
                                                         Vector3d &del_p2_theta,
                                                         Vector3d &del_q1_theta,
@@ -246,4 +249,12 @@ void ShellEnergy::ComputeDihedralAngleDerivatives(const VectorXd &q, int p1, int
         del_p1_theta = F11 + F12;
         del_p2_theta = F21 + F22;
     }
+}
+
+void ShellForces::getForce(const VectorXd &q, VectorXd &f)
+{
+    VectorXd bf, sf;
+    getStretchingForce(q, sf);
+    getBendingForce(q, bf);
+    f = bf + sf;
 }

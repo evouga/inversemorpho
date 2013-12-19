@@ -7,7 +7,7 @@ using namespace std;
 
 Mesh::Mesh() : meshLock_(QMutex::Recursive)
 {
-    params_.h = 1;
+    params_.h = .1;
     params_.YoungsModulus = 1;
     params_.PoissonRatio = 0.5;
     params_.maxiters = 50;
@@ -126,8 +126,18 @@ void Mesh::setIntrinsicLengthsToCurrentLengths()
         for(OMMesh::EdgeIter ei = mesh_->edges_begin(); ei != mesh_->edges_end(); ++ei)
         {
             double length = mesh_->calc_edge_length(ei.handle());
-            mesh_->data(ei.handle()).setRestlen(length);
+            OMMesh::HalfedgeHandle heh = mesh_->halfedge_handle(ei.handle(),0);
+            OMMesh::VertexHandle v1 = mesh_->to_vertex_handle(heh);
+            OMMesh::VertexHandle v2 = mesh_->from_vertex_handle(heh);
+            OMMesh::Point midp = (mesh_->point(v1)+mesh_->point(v2))*0.5;
+            double r = sqrt(midp[0]*midp[0]+midp[1]*midp[1]);
+            mesh_->data(ei.handle()).setRestlen(length*(1+.2*(r)));
         }
+    }
+
+    for(OMMesh::VertexIter vi = mesh_->vertices_begin(); vi != mesh_->vertices_end(); ++vi)
+    {
+        mesh_->point(vi.handle())[2] += 0.01*double(rand())/double(RAND_MAX);
     }
     meshLock_.unlock();
 }

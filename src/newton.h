@@ -15,7 +15,7 @@ public:
 
 struct NewtonParameters
 {
-    NewtonParameters() : tol(1e-6), maxiters(100), lsmaxiters(100), lmfactor(1e-3) {}
+    NewtonParameters() : tol(1e-6), maxiters(100), lsmaxiters(100), lmfactor(1e-6) {}
     double tol;
     int maxiters;
     int lsmaxiters;

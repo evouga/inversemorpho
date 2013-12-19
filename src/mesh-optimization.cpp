@@ -36,7 +36,6 @@ void Mesh::elasticEnergy(const VectorXd &q,
 
 
     vector<Tr> Hqcoeffs;
-    vector<Tr> Hgcoeffs;
     vector<Tr> dgdqcoeffs;
 
     // bending energy

@@ -16,7 +16,7 @@ bool Mesh::simulate(Controller &cont)
     double crushspeed = 20;
     double crushFraction = 0.10;
     double stretchStiffness = 10000000;
-    double bendStiffness    = 100000;
+    double bendStiffness    = 10000;
 
     VectorXd q(numdofs());
     VectorXd g(numedges());

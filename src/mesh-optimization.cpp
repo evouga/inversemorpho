@@ -11,23 +11,29 @@ using namespace OpenMesh;
 
 bool Mesh::simulate(Controller &cont)
 {
+    double h = 0.001;
+    double damping = 0.01;
+    double crushspeed = 20;
+    double crushFraction = 0.10;
+    double stretchStiffness = 10000000;
+    double bendStiffness    = 100000;
+
     VectorXd q(numdofs());
     VectorXd g(numedges());
     dofsFromGeometry(q, g);
+    VectorXd undefq = q;
 
-    double h = 0.01;
+
     VectorXd v(numdofs());
     v.setZero();
-    int numsteps = 10000;
-    ShellForces sf(*mesh_, q, 100, 1);
+    ShellForces sf(*mesh_, undefq, stretchStiffness, bendStiffness);
     SparseMatrix<double> Minv;
     SparseMatrix<double> M;
     buildMassMatrix(g, M);
     buildInvMassMatrix(g, Minv);
 
-    double damping = 0.1;
 
-    // find top vertices
+    // find top and bottom
     double miny = std::numeric_limits<double>::infinity();
     double maxy = -std::numeric_limits<double>::infinity();
     for(OMMesh::VertexIter vi = mesh_->vertices_begin(); vi != mesh_->vertices_end(); ++vi)
@@ -37,45 +43,38 @@ bool Mesh::simulate(Controller &cont)
         maxy = std::max(maxy, y);
     }
 
-    vector<int> topverts;
-    vector<int> bottomverts;
-    double tol = 1e-4;
-    for(OMMesh::VertexIter vi = mesh_->vertices_begin(); vi != mesh_->vertices_end(); ++vi)
-    {
-        double y = mesh_->point(vi.handle())[1];
-        if(fabs(y-miny) < tol)
-            bottomverts.push_back(vi.handle().idx());
-        if(fabs(y-maxy) < tol)
-            topverts.push_back(vi.handle().idx());
-    }
-
-    Vector3d gravity(0,-20,0);
-    VectorXd extForce(q.size());
-    extForce.setZero();
-    for(int i=0; i<(int)topverts.size(); i++)
-    {
-        extForce.segment<3>(3*topverts[i]) = gravity;
-    }
-    extForce = M*extForce;
-
-    for(int i=0; i<(int)bottomverts.size(); i++)
-    {
-        for(int j=0; j<3; j++)
-            Minv.coeffRef(3*bottomverts[i]+j, 3*bottomverts[i]+j) = 0;
-    }
-
-    for(int i=0; i<numsteps; i++)
+    for(int i=0; h*i*crushspeed < crushFraction*(maxy-miny); i++)
     {
         q += h*v;
+
+        // fix bottom and top
+        for(int j=0; j<(int)mesh_->n_vertices(); j++)
+        {
+            double height = q[3*j+1];
+            if(height < miny)
+            {
+                q[3*j+1] = miny;
+                //DOFs on the floor become pinned there
+                for(int k=0; k<3; k++)
+                {
+                    v[3*j+k] = 0;
+                    Minv.coeffRef(3*j+k,3*j+k) = 0;
+                }
+            }
+            if(height > maxy-h*i*crushspeed)
+            {
+                q[3*j+1] = maxy - h*i*crushspeed;
+                v[3*j+1] = -crushspeed;
+            }
+        }
+
 
         v *= (1.0 - damping);
 
         VectorXd F;
         sf.getForce(q, F);
-        F += extForce;
         v += h*Minv*F;
         dofsToGeometry(q, g);
-        QThread::msleep(100);
     }
 
     cont.updateGL();
